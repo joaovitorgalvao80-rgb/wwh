@@ -1,0 +1,16 @@
+node_modules/
+.env
+.DS_Store
+dist/
+build/
+*.log
+.antigravity/
+.gemini/
+.claude/
+.cursor/
+.codex/
+.synapse/
+.aiox/
+.aiox-core/
+raw_assets/
+output/

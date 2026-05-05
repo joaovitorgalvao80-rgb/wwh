@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roteiro → SRT</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3d;
+    --accent: #00ff88;
+    --accent2: #7c3aed;
+    --text: #e8e8f0;
+    --muted: #6b6b8a;
+    --danger: #ff4757;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 48px 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  header {
+    margin-bottom: 56px;
+  }
+
+  .badge {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 4px 12px;
+    margin-bottom: 20px;
+    position: relative;
+  }
+
+  .badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  h1 {
+    font-size: clamp(36px, 6vw, 72px);
+    font-weight: 800;
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+  }
+
+  h1 span.highlight {
+    color: var(--accent);
+    position: relative;
+  }
+
+  h1 span.dim {
+    color: var(--muted);
+  }
+
+  .subtitle {
+    margin-top: 16px;
+    color: var(--muted);
+    font-size: 15px;
+    max-width: 500px;
+    line-height: 1.6;
+  }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    background: var(--surface);
+    padding: 56px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 32px;
+  }
+
+  .upload-zone::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 0%, rgba(0,255,136,0.03) 100%);
+    pointer-events: none;
+  }
+
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(0,255,136,0.04);
+  }
+
+  .upload-zone.dragover {
+    transform: scale(1.01);
+  }
+
+  .upload-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .upload-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .upload-sub {
+    font-size: 13px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  #fileInput { display: none; }
+
+  /* Config panel */
+  .config-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 28px;
+    margin-bottom: 32px;
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .config-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-width: 180px;
+  }
+
+  .config-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .config-input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 14px;
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+  }
+
+  .config-input:focus {
+    border-color: var(--accent);
+  }
+
+  /* Buttons */
+  .btn {
+    padding: 14px 28px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+
+  .btn-primary:hover {
+    background: #00e67a;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0,255,136,0.3);
+  }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 40px;
+  }
+
+  /* Preview / Output */
+  .output-section {
+    display: none;
+  }
+
+  .output-section.visible {
+    display: block;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    gap: 16px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .count-badge {
+    background: var(--accent);
+    color: #000;
+    font-size: 11px;
+    padding: 2px 8px;
+    font-weight: 700;
+  }
+
+  .srt-preview {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 24px;
+    max-height: 520px;
+    overflow-y: auto;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .srt-block {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    animation: fadeIn 0.3s ease forwards;
+    opacity: 0;
+  }
+
+  @keyframes fadeIn {
+    to { opacity: 1; }
+  }
+
+  .srt-block:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+
+  .srt-num {
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+
+  .srt-time {
+    color: var(--muted);
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+
+  .srt-text {
+    color: var(--text);
+  }
+
+  /* Stats row */
+  .stats {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px 24px;
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    right: 32px;
+    background: var(--accent);
+    color: #000;
+    padding: 14px 24px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    z-index: 1000;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  .toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  /* File info */
+  .file-info {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: rgba(0,255,136,0.06);
+    border: 1px solid rgba(0,255,136,0.2);
+    margin-bottom: 24px;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+  }
+
+  .file-info.visible { display: flex; }
+  .file-info-icon { font-size: 20px; }
+  .file-info-name { color: var(--accent); flex: 1; }
+  .file-info-size { color: var(--muted); }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 40px 0;
+  }
+
+  .progress-bar {
+    height: 2px;
+    background: var(--border);
+    margin-bottom: 32px;
+    display: none;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .progress-bar.visible { display: block; }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 0.3s ease;
+    position: relative;
+  }
+
+  .progress-fill::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: -2px;
+    bottom: -2px;
+    width: 40px;
+    background: linear-gradient(to right, transparent, rgba(0,255,136,0.6));
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="badge">Ferramenta de Produção</div>
+    <h1>
+      Roteiro<br>
+      <span class="dim">para</span>
+      <span class="highlight"> .SRT</span>
+    </h1>
+    <p class="subtitle">Converta seu roteiro em legendas segmentadas para geração de imagens — blocos inteligentes de até 20 palavras.</p>
+  </header>
+
+  <!-- Upload -->
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="fileInput" accept=".txt,.doc,.docx">
+    <span class="upload-icon">📄</span>
+    <div class="upload-title">Arraste o roteiro aqui</div>
+    <div class="upload-sub">.txt · .doc · .docx — clique para selecionar</div>
+  </div>
+
+  <div class="file-info" id="fileInfo">
+    <span class="file-info-icon">✓</span>
+    <span class="file-info-name" id="fileName">—</span>
+    <span class="file-info-size" id="fileSize">—</span>
+  </div>
+
+  <!-- Config -->
+  <div class="config-panel">
+    <div class="config-group">
+      <span class="config-label">Limite máximo por bloco</span>
+      <input type="number" class="config-input" id="wordLimit" value="20" min="5" max="100">
+    </div>
+    <div class="config-group">
+      <span class="config-label">Mínimo de palavras por bloco</span>
+      <input type="number" class="config-input" id="wordMin" value="7" min="1" max="30">
+    </div>
+    <div class="config-group">
+      <span class="config-label">Duração por palavra (seg)</span>
+      <input type="number" class="config-input" id="secsPerWord" value="0.4" step="0.05" min="0.1" max="2">
+    </div>
+    <div class="config-group">
+      <span class="config-label">Início em (seg)</span>
+      <input type="number" class="config-input" id="startTime" value="0" min="0">
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="generateBtn" disabled>
+      ⚡ Gerar SRT
+    </button>
+    <button class="btn btn-secondary" id="downloadBtn" disabled>
+      ↓ Salvar .srt
+    </button>
+    <button class="btn btn-secondary" id="clearBtn">
+      ✕ Limpar
+    </button>
+  </div>
+
+  <div class="progress-bar" id="progressBar">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+
+  <!-- Output -->
+  <div class="output-section" id="outputSection">
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value" id="statBlocks">0</div>
+        <div class="stat-label">Blocos SRT</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="statWords">0</div>
+        <div class="stat-label">Palavras total</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="statDuration">0s</div>
+        <div class="stat-label">Duração estimada</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="statAvg">0</div>
+        <div class="stat-label">Média por bloco</div>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <span class="section-title">
+        Preview do SRT
+        <span class="count-badge" id="blockCount">0</span>
+      </span>
+    </div>
+
+    <div class="srt-preview" id="srtPreview"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script>
+// ────────────────────────────────────────────────
+//  State
+// ────────────────────────────────────────────────
+let rawText = '';
+let srtContent = '';
+let currentFile = null;
+
+// ────────────────────────────────────────────────
+//  UI Elements
+// ────────────────────────────────────────────────
+const uploadZone   = document.getElementById('uploadZone');
+const fileInput    = document.getElementById('fileInput');
+const fileInfo     = document.getElementById('fileInfo');
+const fileName     = document.getElementById('fileName');
+const fileSize     = document.getElementById('fileSize');
+const generateBtn  = document.getElementById('generateBtn');
+const downloadBtn  = document.getElementById('downloadBtn');
+const clearBtn     = document.getElementById('clearBtn');
+const outputSection = document.getElementById('outputSection');
+const srtPreview   = document.getElementById('srtPreview');
+const progressBar  = document.getElementById('progressBar');
+const progressFill = document.getElementById('progressFill');
+
+// ────────────────────────────────────────────────
+//  Upload handling
+// ────────────────────────────────────────────────
+uploadZone.addEventListener('click', () => fileInput.click());
+
+uploadZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  uploadZone.classList.add('dragover');
+});
+
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) handleFile(file);
+});
+
+async function handleFile(file) {
+  currentFile = file;
+  const ext = file.name.split('.').pop().toLowerCase();
+  const validExts = ['txt', 'doc', 'docx'];
+
+  if (!validExts.includes(ext)) {
+    showToast('❌ Formato inválido. Use .txt, .doc ou .docx');
+    return;
+  }
+
+  fileName.textContent = file.name;
+  fileSize.textContent = formatBytes(file.size);
+  fileInfo.classList.add('visible');
+
+  try {
+    if (ext === 'txt') {
+      rawText = await readAsText(file);
+    } else if (ext === 'docx' || ext === 'doc') {
+      const arrayBuffer = await readAsArrayBuffer(file);
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      rawText = result.value;
+    }
+    generateBtn.disabled = false;
+    showToast('✓ Arquivo carregado com sucesso!');
+  } catch (err) {
+    showToast('❌ Erro ao ler o arquivo: ' + err.message);
+  }
+}
+
+function readAsText(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => rej(new Error('Falha na leitura'));
+    r.readAsText(file, 'UTF-8');
+  });
+}
+
+function readAsArrayBuffer(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = () => rej(new Error('Falha na leitura'));
+    r.readAsArrayBuffer(file);
+  });
+}
+
+// ────────────────────────────────────────────────
+//  SRT Generation Logic
+// ────────────────────────────────────────────────
+generateBtn.addEventListener('click', generateSRT);
+
+function generateSRT() {
+  if (!rawText.trim()) return;
+
+  const wordLimit   = parseInt(document.getElementById('wordLimit').value) || 20;
+  const wordMin     = parseInt(document.getElementById('wordMin').value) || 7;
+  const secsPerWord = parseFloat(document.getElementById('secsPerWord').value) || 0.4;
+  let   startSecs   = parseFloat(document.getElementById('startTime').value) || 0;
+
+  // ── 1. Tokenise: split on sentence-ending punctuation (. ! ?) and commas
+  //     Keep the delimiter attached to the preceding segment.
+  const segments = tokeniseText(rawText);
+
+  // ── 2. Apply smart word-count splitting then merge small blocks
+  const rawBlocks = buildBlocks(segments, wordLimit);
+  const blocks    = mergeSmallBlocks(rawBlocks, wordMin, wordLimit);
+
+  // ── 3. Convert to SRT
+  let srtLines = [];
+  let cumulativeTime = startSecs;
+  let totalWords = 0;
+
+  blocks.forEach((block, i) => {
+    const words = block.trim().split(/\s+/).filter(Boolean);
+    const count = words.length;
+    totalWords += count;
+
+    const duration  = count * secsPerWord;
+    const startTime = cumulativeTime;
+    const endTime   = cumulativeTime + duration;
+
+    srtLines.push(`${i + 1}`);
+    srtLines.push(`${toSRTTime(startTime)} --> ${toSRTTime(endTime)}`);
+    srtLines.push(block.trim());
+    srtLines.push('');
+
+    cumulativeTime = endTime;
+  });
+
+  srtContent = srtLines.join('\n');
+
+  // ── 4. Render preview
+  renderPreview(blocks, blocks.map((b, i) => {
+    const c = b.trim().split(/\s+/).filter(Boolean).length;
+    const s = startSecs;
+    return null; // times computed inline below
+  }), startSecs, secsPerWord);
+
+  // ── 5. Stats
+  document.getElementById('statBlocks').textContent   = blocks.length;
+  document.getElementById('statWords').textContent    = totalWords;
+  document.getElementById('statDuration').textContent = formatDuration(cumulativeTime - startSecs);
+  document.getElementById('statAvg').textContent      = (totalWords / blocks.length).toFixed(1);
+  document.getElementById('blockCount').textContent   = blocks.length;
+
+  outputSection.classList.add('visible');
+  downloadBtn.disabled = false;
+
+  // scroll to output
+  outputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  showToast(`✓ ${blocks.length} blocos gerados!`);
+}
+
+// ── Tokenise text into segments split by . , ! ?
+function tokeniseText(text) {
+  // Normalize line breaks
+  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  // Split keeping delimiters
+  const parts = text.split(/([.,!?]+)/);
+  const segments = [];
+  let current = '';
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const isDelim = /^[.,!?]+$/.test(part);
+
+    if (isDelim) {
+      current += part;
+      const trimmed = current.trim();
+      if (trimmed) segments.push(trimmed);
+      current = '';
+    } else {
+      current += part;
+    }
+  }
+
+  // leftover
+  if (current.trim()) segments.push(current.trim());
+
+  return segments.filter(s => s.trim().length > 0);
+}
+
+// ── Build final blocks applying the 20-word rule
+function buildBlocks(segments, limit) {
+  const blocks = [];
+
+  for (const seg of segments) {
+    const words = seg.trim().split(/\s+/).filter(Boolean);
+
+    if (words.length === 0) continue;
+
+    if (words.length <= limit) {
+      // fits fine — add as a single block
+      blocks.push(words.join(' '));
+    } else {
+      // too long: split into roughly equal halves
+      const subBlocks = splitIntoHalves(words, limit);
+      blocks.push(...subBlocks);
+    }
+  }
+
+  return blocks.filter(b => b.trim().length > 0);
+}
+
+// ── Recursively split word arrays until each chunk ≤ limit
+function splitIntoHalves(words, limit) {
+  if (words.length <= limit) return [words.join(' ')];
+
+  const mid = Math.ceil(words.length / 2);
+  const left  = words.slice(0, mid);
+  const right = words.slice(mid);
+
+  return [
+    ...splitIntoHalves(left,  limit),
+    ...splitIntoHalves(right, limit)
+  ];
+}
+
+// ── Merge blocks with fewer than `minWords` words into the next block.
+//    After merging, if the result exceeds `maxWords`, re-split it.
+function mergeSmallBlocks(blocks, minWords, maxWords) {
+  // Pass 1: forward-merge small blocks into the next one
+  const merged = [];
+  let pending = '';
+
+  for (let i = 0; i < blocks.length; i++) {
+    const combined = pending ? pending + ' ' + blocks[i] : blocks[i];
+    const wCount   = combined.trim().split(/\s+/).filter(Boolean).length;
+
+    if (wCount < minWords && i < blocks.length - 1) {
+      // still too small and there's a next block — keep accumulating
+      pending = combined;
+    } else {
+      merged.push(combined.trim());
+      pending = '';
+    }
+  }
+
+  // flush any leftover (last block)
+  if (pending) {
+    if (merged.length > 0) {
+      // attach to previous block instead of leaving an orphan
+      merged[merged.length - 1] = (merged[merged.length - 1] + ' ' + pending).trim();
+    } else {
+      merged.push(pending.trim());
+    }
+  }
+
+  // Pass 2: if merging made any block exceed maxWords, re-split those
+  const final = [];
+  for (const block of merged) {
+    const words = block.trim().split(/\s+/).filter(Boolean);
+    if (words.length > maxWords) {
+      final.push(...splitIntoHalves(words, maxWords));
+    } else {
+      final.push(block);
+    }
+  }
+
+  return final.filter(b => b.trim().length > 0);
+}
+
+// ────────────────────────────────────────────────
+//  Preview rendering
+// ────────────────────────────────────────────────
+function renderPreview(blocks, _, startSecs, secsPerWord) {
+  srtPreview.innerHTML = '';
+  let t = startSecs;
+
+  blocks.forEach((block, i) => {
+    const words    = block.trim().split(/\s+/).filter(Boolean).length;
+    const duration = words * secsPerWord;
+    const start    = t;
+    const end      = t + duration;
+    t = end;
+
+    const div = document.createElement('div');
+    div.className = 'srt-block';
+    div.style.animationDelay = `${i * 0.04}s`;
+    div.innerHTML = `
+      <div class="srt-num">#${i + 1}</div>
+      <div class="srt-time">${toSRTTime(start)} → ${toSRTTime(end)}</div>
+      <div class="srt-text">${escapeHTML(block.trim())}</div>
+    `;
+    srtPreview.appendChild(div);
+  });
+}
+
+// ────────────────────────────────────────────────
+//  Download
+// ────────────────────────────────────────────────
+downloadBtn.addEventListener('click', () => {
+  if (!srtContent) return;
+  const baseName = currentFile ? currentFile.name.replace(/\.[^.]+$/, '') : 'roteiro';
+  const blob = new Blob([srtContent], { type: 'text/plain;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `${baseName}.srt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('↓ Arquivo .srt salvo!');
+});
+
+// ────────────────────────────────────────────────
+//  Clear
+// ────────────────────────────────────────────────
+clearBtn.addEventListener('click', () => {
+  rawText    = '';
+  srtContent = '';
+  currentFile = null;
+  fileInput.value = '';
+  fileInfo.classList.remove('visible');
+  outputSection.classList.remove('visible');
+  generateBtn.disabled  = true;
+  downloadBtn.disabled  = true;
+  srtPreview.innerHTML  = '';
+  showToast('Limpo!');
+});
+
+// ────────────────────────────────────────────────
+//  Helpers
+// ────────────────────────────────────────────────
+function toSRTTime(secs) {
+  const h  = Math.floor(secs / 3600);
+  const m  = Math.floor((secs % 3600) / 60);
+  const s  = Math.floor(secs % 60);
+  const ms = Math.round((secs % 1) * 1000);
+  return `${pad(h)}:${pad(m)}:${pad(s)},${pad(ms, 3)}`;
+}
+
+function pad(n, len = 2) {
+  return String(n).padStart(len, '0');
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function formatDuration(secs) {
+  if (secs < 60)   return secs.toFixed(0) + 's';
+  if (secs < 3600) return (secs / 60).toFixed(1) + 'min';
+  return (secs / 3600).toFixed(2) + 'h';
+}
+
+function escapeHTML(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+let toastTimer;
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
